@@ -4,20 +4,20 @@ use 5.006001;
 use strict;
 use warnings;
 
-our $VERSION = 0.01;
+our $VERSION = "1.00";
 
 use Tie::Hash;
-use base 'Tie::ExtraHash';
+use base 'Tie::ExtraHash'; # defined in Tie/Hash.pm
 
 sub new {
-    my ($class, $defsub) = @_;
-    tie my %hash => $class, $defsub;
+    my ($class, $defsub, %params) = @_;
+    tie my %hash => $class, $defsub, %params;
     \%hash;
 }
 
 sub TIEHASH {
-    my ($class, $defsub) = @_;
-    bless [{}, $defsub] => ref $class || $class;
+    my ($class, $defsub, %params) = @_;
+    bless [{}, $defsub, \%params] => ref $class || $class;
 }
 
 sub FETCH {
@@ -31,12 +31,33 @@ sub FETCH {
     }
 }
 
+sub STORE {
+  my($self, $key, $value) = @_;
+  
+  if(
+    ref($value) eq 'HASH' &&
+    $self->[2]->{infect_children} &&
+    !(tied(%{$value}) && tied(%{$value})->isa(ref($self)))
+  ) {
+    $self->[0]->{$key} = ref($self)->new($self->[1], %{$self->[2]});
+    $self->[0]->{$key}->{$_} = $value->{$_} foreach(keys(%{$value}));
+    $self->[0]->{$key};
+  } else {
+    $self->[0]->{$key} = $value;
+  }
+}
+
 1;
 
 
 =head1 NAME
 
 Tie::Hash::Vivify - Create hashes that autovivify in interesting ways.
+
+=head1 DESCRIPTION
+
+This module implements a hash where if you read a key that doesn't exist, it
+will call a code reference to fill that slot with a value.
 
 =head1 SYNOPSIS
 
@@ -54,27 +75,40 @@ Tie::Hash::Vivify - Create hashes that autovivify in interesting ways.
     $hashref->{foo};    # default
     # ...
 
-=head1 DESCRIPTION
+=head1 OBJECT-ORIENTED INTERFACE
 
-This module implements a hash where if you read a key that doesn't exist, it
-will call a code reference to fill that slot with a value.
+You can also create your magic hash in an objecty way:
 
-You can either tie to the C<Tie::Hash::Vivify> package:
-
-    tie my %hash => 'Tie::Hash::Vivify', sub { "my default" };
-
-Or you can create a new anonymous reference to a C<Tie::Hash::Vivify> hash:
+=head2 new
 
     my $hashref = Tie::Hash::Vivify->new(sub { "my default" });
 
-=head1 AUTHOR
+=head1 "INFECTING" CHILD HASHES
 
-Luke Palmer, lrpalmer gmail com
+By default, hashes contained within your hash do *not* inherit magical
+vivification behaviour.  If you want them to, then pass some extra
+params thus:
+
+  tie my %hash => 'Tie::Hash::Vivify', sub { "default" . $default++ }, infect_children => 1;
+
+  my $hashref = Tie::Hash::Vivify->new(sub { "my default" }, infect_children => 1);
+
+=head1 AUTHORS
+
+Luke Palmer, lrpalmer gmail com (original author)
+
+David Cantrell E<lt>david@cantrell.org.ukE<gt> (current maintainer)
 
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2005 by Luke Palmer
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.8.6 or,
-at your option, any later version of Perl 5 you may have available.
+Some parts Copyright 2010 David Cantrell E<lt>david@cantrell.org.ukE<gt>.
+
+This software is free-as-in-speech software, and may be used,
+distributed, and modified under the terms of either the GNU
+General Public Licence version 2 or the Artistic Licence.  It's
+up to you which one you use.  The full text of the licences can
+be found in the files GPL2.txt and ARTISTIC.txt, respectively.
+
+=cut

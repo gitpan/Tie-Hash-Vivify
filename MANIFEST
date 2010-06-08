@@ -1,7 +1,12 @@
-Changes
-Makefile.PL
-MANIFEST
-README
-test.pl
 lib/Tie/Hash/Vivify.pm
+Makefile.PL
+CHANGES
+README
+ARTISTIC.txt
+t/pod-coverage.t
+t/pod.t
+t/00-v0.01.t
+GPL2.txt
+MANIFEST
+t/01-infect-sub-hashes.t
 META.yml                                 Module meta-data (added by MakeMaker)
